@@ -2,7 +2,7 @@ import array
 from hashlib import sha1
 
 import six
-from txorbit.pyencoding import packUShort, packULong, Reader, ReadException
+from txorbit.encoding import packUShort, packULong, Reader, ReadException
 
 WS_GUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 

@@ -1,11 +1,11 @@
 from setuptools import setup
+from txorbit import __version__
 
 setup(
     name='txorbit',
-    use_incremental=True,
-    setup_requires=['incremental'],
-    install_requires=['incremental', 'twisted'],
+    install_requires=['six', 'twisted'],
     description='Transactional WebSockets library for the Twisted networking framework',
+    version=__version__,
     author='systocrat',
     author_email='systocrat@outlook.com',
     maintainer='systocrat',
