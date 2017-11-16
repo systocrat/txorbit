@@ -1,102 +1,94 @@
 import random
-import six
 import string
 
+import six
 from twisted.internet.defer import Deferred
 
 
 class WSProtocol(object):
-    def __init__(self, transaction):
-        # note-- this is a circular reference, which is probably acceptable since a transaction shouldn't
-        # ever be disposed while it still has connections associated with it, however keep in mind this
-        # means the transaction/protocols will be stuck in scope if a protocol ever leaks
-        self.transaction = transaction
+	def __init__(self, transaction):
+		# note-- this is a circular reference, which is probably acceptable since a transaction shouldn't
+		# ever be disposed while it still has connections associated with it, however keep in mind this
+		# means the transaction/protocols will be stuck in scope if a protocol ever leaks
+		self.transaction = transaction
 
-    def connectionMade(self, ws):
-        pass
+	def connectionMade(self, ws):
+		pass
 
-    def dataReceived(self, ws, data, isBinary):
-        pass
+	def dataReceived(self, ws, data, isBinary):
+		pass
 
-    def connectionEnd(self):
-        pass
+	def connectionEnd(self):
+		pass
 
-    def disconnect(self):
-        self.transaction.connections[self].transport.abortConnection()
+	def disconnect(self):
+		self.ws.transport.abortConnection()
 
-    @property
-    def ws(self):
-        return self.transaction.connections[self]
+	@property
+	def ws(self):
+		return self.transaction.connections[self]
 
 
 class Transaction(object):
-    def __init__(self, protocol, reverseProxyHeader=None):
-        self.protocol = protocol
-        # map of protocol: underlying ws connection
-        self.connections = {}
+	def __init__(self, protocol):
+		self.protocol = protocol
+		# map of protocol: underlying ws connection
+		self.connections = {}
+		self.finished = Deferred()
 
-        self.finished = Deferred()
-        self.reverseProxyHeader = reverseProxyHeader
+	def adoptWebSocket(self, protocol):
+		p = self.protocol(self)
+		self.connections[p] = protocol
 
-        self.initialize()
+		protocol.inner = p
+		protocol.finished.addCallback(self._proto_disconnected, p)
 
-    # convenience method to avoid having to call parent __init__
-    def initialize(self):
-        pass
+		# p.connectionMade(protocol)
 
-    def _proto_disconnected(self, ws, proto):
-        # is ws even available for writing here? this connection is presumably already terminated
-        proto.connectionEnd()
-        del self.connections[proto]
+		return protocol
 
-    def adoptWebSocket(self, protocol):
-        p = self.protocol(self)
-        self.connections[p] = protocol
+	def finish(self):
+		for connection in self.connections.values():
+			connection.transport.loseConnection()
 
-        protocol.inner = p
-        protocol.finished.addCallback(self._proto_disconnected, p)
+		self.connections = {}
+		self.finished.callback(self)
 
-        # p.connectionMade(protocol)
-
-        return protocol
-
-    def finish(self):
-        for connection in self.connections.values():
-            connection.transport.loseConnection()
-
-        self.connections = {}
-        self.finished.callback(self)
+	def _proto_disconnected(self, ws, proto):
+		# is ws even available for writing here? this connection is presumably already terminated
+		proto.connectionEnd()
+		del self.connections[proto]
 
 
 class TransactionNotFoundException(Exception):
-    pass
+	pass
 
 
 transaction_charset = string.letters + string.digits
 
 
 class TransactionManager(object):
-    def __init__(self):
-        self.transactions = {}
+	def __init__(self):
+		self.transactions = {}
 
-    def addTransaction(self, transaction, rstr=None):
-        if rstr is None:
-            rstr = ''.join([random.choice(transaction_charset) for _ in six.moves.xrange(32)])
+	def addTransaction(self, transaction, rstr=None):
+		if rstr is None:
+			rstr = ''.join([random.choice(transaction_charset) for _ in six.moves.xrange(32)])
 
-        self.transactions[rstr] = transaction
+		self.transactions[rstr] = transaction
 
-        def finish_transaction(data):
-            del self.transactions[rstr]
-            return data
+		transaction.finished.addCallback(self.completeTransaction, rstr)
+		return rstr
 
-        transaction.finished.addCallback(finish_transaction)
-        return rstr
+	def hasTransaction(self, key):
+		return self.transactions.has_key(key)
 
-    def hasTransaction(self, key):
-        return self.transactions.has_key(key)
+	def completeTransaction(self, result, rstr):
+		del self.transactions[rstr]
+		return result
 
-    def __call__(self, secretKey):
-        if not self.transactions.has_key(secretKey):
-            raise TransactionNotFoundException()
+	def __call__(self, secretKey):
+		if not self.transactions.has_key(secretKey):
+			raise TransactionNotFoundException()
 
-        return self.transactions[secretKey]
+		return self.transactions[secretKey]
