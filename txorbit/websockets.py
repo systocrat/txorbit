@@ -28,8 +28,8 @@ class WebSocketProtocol(Protocol):
 
 	def sendBinary(self, payload):
 		'''
-
-		:param payload:
+		Send a binary payload to the remote client
+		:param payload: bytes object
 		:return:
 		'''
 		self.sendMessage(payload, True)

@@ -1,3 +1,4 @@
+from twisted.internet.defer import maybeDeferred
 from twisted.protocols.policies import ProtocolWrapper
 from twisted.web.resource import NoResource, IResource, Resource
 from twisted.web.server import NOT_DONE_YET
@@ -92,6 +93,23 @@ class WebSocketResource(object):
 			request.setResponseCode(400)
 			return b''
 
+		if self.keyword is not None and self.keyword in request.args:
+			lookupKw = self.keyword
+		else:
+			lookupKw = None
+
+		d = maybeDeferred(self.lookup, lookupKw)
+		d.addCallback(self.setupTransaction, request, protocol, key)
+		d.addErrback(self.setupError, request)
+
+		return NOT_DONE_YET
+
+	def setupError(self, exc, request):
+		# If the lookup for a transaction fails or throws an Exception, return 500 internal serer error
+		request.setResponseCode(500)
+		request.finish()
+
+	def setupTransaction(self, transaction, request, protocol, key):
 		request.setResponseCode(101)
 		request.setHeader('Upgrade', 'WebSocket')
 		request.setHeader('Connection', 'Upgrade')
@@ -110,15 +128,5 @@ class WebSocketResource(object):
 		if hasattr(transport, "resumeProducing"):
 			transport.resumeProducing()
 
-		try:
-			transaction = self.lookup(request.args[self.keyword][0] if (
-					self.keyword is not None and self.keyword in request.args) else None)
-		except:
-			# failed to locate
-			request.setResponseCode(400)
-			return b""
-
 		transaction.adoptWebSocket(protocol)
 		protocol.makeConnection(transport)
-
-		return NOT_DONE_YET

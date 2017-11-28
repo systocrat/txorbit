@@ -64,7 +64,10 @@ class TransactionNotFoundException(Exception):
 	pass
 
 
-transaction_charset = string.letters + string.digits
+try:
+	transaction_charset = string.ascii_letters + string.digits
+except AttributeError:
+	transaction_charset = string.letters + string.digits
 
 
 class TransactionManager(object):
@@ -81,14 +84,14 @@ class TransactionManager(object):
 		return rstr
 
 	def hasTransaction(self, key):
-		return self.transactions.has_key(key)
+		return key in self.transactions
 
 	def completeTransaction(self, result, rstr):
 		del self.transactions[rstr]
 		return result
 
 	def __call__(self, secretKey):
-		if not self.transactions.has_key(secretKey):
+		if secretKey not in self.transactions:
 			raise TransactionNotFoundException()
 
 		return self.transactions[secretKey]
