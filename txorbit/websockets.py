@@ -39,7 +39,7 @@ class WebSocketProtocol(Protocol):
 		Send a text payload to the remote client
 		:param payload: The data to send
 		'''
-		self.sendMessage(payload, False)
+		self.sendMessage(payload.encode('utf8'), False)
 
 	def sendMessage(self, data, isBinary=True):
 		'''
@@ -97,5 +97,6 @@ class WebSocketProtocol(Protocol):
 
 	def connectionLost(self, reason=connectionDone):
 		self.connected = False
+
 		if not self.closedCleanly:
-			self.close(False, -1, str(reason))
+			self.close(False, -1, reason)

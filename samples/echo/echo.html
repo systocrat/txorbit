@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Echo Sample</title>
+</head>
+<body>
+<form id="echo-form">
+    <input type="text" width="200px;" id="echo-text" name="echo-text">
+</form>
+<div id="echo-output">
+
+</div>
+
+<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<script>
+    $(function () {
+        const ws_url = "ws://your.ip.here:yourport/";
+
+        const ws = new WebSocket(ws_url);
+
+        ws.onmessage = function (event) {
+            $('#echo-output').text(event.data);
+        };
+
+        $('#echo-form').submit(function (ev) {
+            ev.preventDefault();
+
+            ws.send($('#echo-text').val());
+        });
+    });
+</script>
+</body>
+</html>

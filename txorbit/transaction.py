@@ -41,7 +41,7 @@ class Transaction(object):
 		self.connections[p] = protocol
 
 		protocol.inner = p
-		protocol.finished.addCallback(self._proto_disconnected, p)
+		protocol.finished.addCallback(self.ws_disconnected, p)
 
 		# p.connectionMade(protocol)
 
@@ -54,7 +54,7 @@ class Transaction(object):
 		self.connections = {}
 		self.finished.callback(self)
 
-	def _proto_disconnected(self, ws, proto):
+	def ws_disconnected(self, ws, proto):
 		# is ws even available for writing here? this connection is presumably already terminated
 		proto.connectionEnd()
 		del self.connections[proto]

@@ -64,7 +64,8 @@ class WebSocketResource(object):
 
 		# If we fail at all, we'll fail with 400 and no response.
 		failed = False
-		if request.method != 'GET':
+
+		if request.method != b'GET':
 			failed = True
 
 		upgrade = request.getHeader('Upgrade')
@@ -82,6 +83,8 @@ class WebSocketResource(object):
 		if not key:
 			failed = True
 
+		key = key.encode('utf8')
+
 		version = request.getHeader('Sec-WebSocket-Version')
 
 		if not version or version != '13':
@@ -98,6 +101,8 @@ class WebSocketResource(object):
 		else:
 			lookupKw = None
 
+		#request.transport.pauseProducing()
+
 		d = maybeDeferred(self.lookup, lookupKw)
 		d.addCallback(self.setupTransaction, request, protocol, key)
 		d.addErrback(self.setupError, request)
@@ -111,9 +116,10 @@ class WebSocketResource(object):
 
 	def setupTransaction(self, transaction, request, protocol, key):
 		request.setResponseCode(101)
-		request.setHeader('Upgrade', 'WebSocket')
-		request.setHeader('Connection', 'Upgrade')
-		request.setHeader('Sec-WebSocket-Accept', buildAccept(key))
+
+		request.setHeader(b'Upgrade', b'WebSocket')
+		request.setHeader(b'Connection', b'Upgrade')
+		request.setHeader(b'Sec-WebSocket-Accept', buildAccept(key))
 
 		request.write('')
 
@@ -125,8 +131,9 @@ class WebSocketResource(object):
 		else:
 			transport.protocol = protocol
 
-		if hasattr(transport, "resumeProducing"):
-			transport.resumeProducing()
-
 		transaction.adoptWebSocket(protocol)
 		protocol.makeConnection(transport)
+
+		transport.resumeProducing()
+
+

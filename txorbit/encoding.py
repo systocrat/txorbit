@@ -1,7 +1,6 @@
 # thrown when there isn't enough data
 import struct
 from _codecs import utf_8_decode
-
 import six
 
 big_endian, little_endian = range(2)
@@ -74,7 +73,7 @@ class Reader(object):
 			setattr(self, struct_name, struct.Struct(struct_prototype % self.endian))
 
 		if data is None:
-			self.data = ''
+			self.data = b''
 		else:
 			self.data = data
 
@@ -102,14 +101,21 @@ class Reader(object):
 		if not self.has(1):
 			raise ReadException()
 
-		return ord(self.data[self.index])
+		if six.PY2:
+			return ord(self.data[self.index])
+		else:
+			return self.data[self.index]
 
 	def readByte(self):
 		if not self.has(1):
 			raise ReadException()
 
 		self.advance(1)
-		return ord(self.data[self.index - 1])
+
+		if six.PY2:
+			return ord(self.data[self.index - 1])
+		else:
+			return self.data[self.index - 1]
 
 	def readSByte(self):
 		if not self.has(1):

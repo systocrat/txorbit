@@ -1,4 +1,5 @@
 import array
+import base64
 from hashlib import sha1
 
 import six
@@ -16,15 +17,17 @@ POLICY_VIOLATION, MESSAGE_TOO_BIG, MISSING_EXTENSIONS, INTERNAL_ERROR, TLS_HANDS
 
 
 def mask(buf, key):
-	key = array.array("B", key)
-	buf = array.array("B", buf)
+	key = array.array('B', key)
+	buf = array.array('B', buf)
+
 	for i in six.moves.xrange(len(buf)):
 		buf[i] ^= key[i % 4]
+
 	return buf.tostring()
 
 
 def buildAccept(key):
-	return sha1(''.join([key, WS_GUID])).digest().encode('base64').strip()
+	return base64.b64encode(sha1(b''.join([key, WS_GUID])).digest())
 
 
 def is_reserved_code(opcode):
@@ -35,9 +38,13 @@ def is_control_code(opcode):
 	return opcode > 7
 
 
+class FrameBuildException(Exception):
+	pass
+
+
 def buildFrame(opcode, body, finished=True, bMask=None):
 	if isinstance(body, six.text_type):
-		body = six.b(body.encode('utf8'))
+		body = six.b(body)
 
 	body_length = len(body)
 
@@ -47,9 +54,9 @@ def buildFrame(opcode, body, finished=True, bMask=None):
 		lengthMask = 0x80
 
 	if body_length > 0xffff:
-		length = '{0}{1}'.format(chr(lengthMask | 0x7f), packULong(body_length))
+		length = b''.join([chr(lengthMask | 0x7f), packULong(body_length)])
 	elif body_length > 0x7d:
-		length = '{0}{1}'.format(chr(lengthMask | 0x7e), packUShort(body_length))
+		length = b''.join([chr(lengthMask | 0x7e), packUShort(body_length)])
 	else:
 		length = chr(lengthMask | body_length)
 
@@ -69,9 +76,11 @@ def buildFrame(opcode, body, finished=True, bMask=None):
 
 def parseFrames(rawData):
 	r = Reader(rawData)
+
 	while True:
 		statusCode = NORMAL
 		statusMessage = ''
+
 		try:
 			header = r.readByte()
 			fin = header & 0x80
